@@ -1,8 +1,8 @@
 import { PropsWithChildren, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
-import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/utils/constants/colors";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 export function Collapsible({ children, title }: PropsWithChildren & { title: string }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -13,8 +13,8 @@ export function Collapsible({ children, title }: PropsWithChildren & { title: st
         style={styles.heading}
         onPress={() => setIsOpen((value) => !value)}
         activeOpacity={0.8}>
-        <IconSymbol
-          name="chevron.right"
+        <MaterialCommunityIcons
+          name="chevron-right"
           size={18}
           weight="medium"
           color={Colors.dark}

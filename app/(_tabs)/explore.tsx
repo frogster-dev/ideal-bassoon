@@ -4,17 +4,18 @@ import { Platform, StyleSheet, Text, View } from "react-native";
 import { ExternalLink } from "@/components/external-link";
 import ParallaxScrollView from "@/components/parallax-scroll-view";
 import { Collapsible } from "@/components/ui/collapsible";
-import { IconSymbol } from "@/components/ui/icon-symbol";
+import { Colors } from "@/utils/constants/colors";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 export default function TabTwoScreen() {
   return (
     <ParallaxScrollView
       headerBackgroundColor={{ light: "#D0D0D0", dark: "#353636" }}
       headerImage={
-        <IconSymbol
+        <MaterialCommunityIcons
+          name="account-box-outline"
           size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
+          color={Colors.primary700}
           style={styles.headerImage}
         />
       }>

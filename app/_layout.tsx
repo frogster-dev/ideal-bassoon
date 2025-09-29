@@ -1,6 +1,7 @@
 import { SplashScreen, Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import { SystemBars } from "react-native-edge-to-edge";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
@@ -36,16 +37,19 @@ export const InitialLayout = () => {
 
   return (
     <Stack screenOptions={{ statusBarTranslucent: true, headerShown: false }}>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(_tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(session)" options={{ headerShown: false }} />
     </Stack>
   );
 };
 
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
-      <SystemBars style="auto" />
-      <InitialLayout />
-    </SafeAreaProvider>
+    <GestureHandlerRootView>
+      <SafeAreaProvider>
+        <SystemBars style="auto" />
+        <InitialLayout />
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
