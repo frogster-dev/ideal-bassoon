@@ -19,7 +19,6 @@ export const InitialLayout = () => {
   useEffect(() => {
     async function prepare() {
       try {
-        // Useless for now but needed for the template
         setAppIsReady(true);
       } catch (e) {
         console.warn(e);
