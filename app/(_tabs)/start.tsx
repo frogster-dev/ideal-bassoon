@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { SquircleButton, SquircleView } from "expo-squircle-view";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -8,11 +8,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { CustomSlider, SliderOption } from "@/components/ui/custom-slider";
 import { Line } from "@/components/ui/line";
 import { SegmentedProjectPriorityButton } from "@/components/ui/segmented-difficulty-buttonts";
+import { useInSessionStore } from "@/libs/zustand/in-session-store";
 import { Colors } from "@/utils/constants/colors";
 import { defaultStyles } from "@/utils/constants/styles";
 
 export default function Page() {
   const router = useRouter();
+
+  const { exercices, initializeSession, isLoading } = useInSessionStore();
 
   // Durée d'éffort en seconds (min: 10min, max: 25min)
   const [effortDuration, setEffortDuration] = useState(10 * 60);
@@ -73,6 +76,19 @@ export default function Page() {
     ];
   }, [effortDuration, pauseDuration, exerciseDuration]);
 
+  useEffect(() => {
+    console.log("exercices", exercices.length);
+  }, [exercices]);
+
+  useEffect(() => {
+    initializeSession({
+      numberOfExercices: numberOfPossiblesExercices,
+      duration: exerciseDuration,
+      pauseDuration: pauseDuration,
+      difficulty,
+    });
+  }, [numberOfPossiblesExercices, exerciseDuration, pauseDuration, difficulty]);
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -119,9 +135,23 @@ export default function Page() {
             Recapitulatif de la séance
           </Text>
           <View style={{ gap: 16 }}>
-            <Line left="Nombre d'exercices" right={numberOfPossiblesExercices} />
+            <Line left="Nombre d'exercices a avoir" right={numberOfPossiblesExercices} />
             <Line left="Durée totale de la séance" right={totalTime} />
             <Line left="Total pause" right={pauseTime} />
+          </View>
+
+          <View style={{ gap: 16, flexDirection: "row", alignItems: "center" }}>
+            <View style={{ flex: 1, height: 1, backgroundColor: Colors.slate200 }} />
+            <Text style={{ color: Colors.slate500 }}>Exercices ({exercices.length})</Text>
+            <View style={{ flex: 1, height: 1, backgroundColor: Colors.slate200 }} />
+          </View>
+
+          <View style={{ gap: 16 }}>
+            {exercices.map((exercice) => (
+              <View key={exercice.id} style={{ flexDirection: "row", alignItems: "center" }}>
+                <Text>{exercice.title}</Text>
+              </View>
+            ))}
           </View>
         </SquircleView>
       </ScrollView>
@@ -132,9 +162,12 @@ export default function Page() {
         </View>
 
         <SquircleButton
-          style={[styles.button, styles.shadow]}
-          onPress={() => router.replace("/(session)")}>
-          <Text style={styles.buttonText}>Commencer la séance</Text>
+          style={[styles.button, styles.shadow, { opacity: isLoading ? 0.5 : 1 }]}
+          onPress={() => router.replace("/(session)")}
+          disabled={isLoading}>
+          <Text style={styles.buttonText}>
+            {isLoading ? "Chargement des exercices..." : "Commencer la séance"}
+          </Text>
         </SquircleButton>
       </View>
     </SafeAreaView>
