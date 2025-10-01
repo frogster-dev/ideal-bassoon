@@ -1,5 +1,8 @@
-import { SplashScreen, Stack } from "expo-router";
+import ClerkProviderWrapper from "@/libs/clerk-provider-wrapper";
+import { useAuth } from "@clerk/clerk-expo";
+import { SplashScreen, Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
+import { Text } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
@@ -14,25 +17,37 @@ export const unstable_settings = { anchor: "(tabs)" };
 SplashScreen.preventAutoHideAsync();
 
 export const InitialLayout = () => {
+  const router = useRouter();
+
   const [appIsReady, setAppIsReady] = useState(false);
+  const { isSignedIn, isLoaded, userId } = useAuth();
 
   useEffect(() => {
     async function prepare() {
-      try {
+      if (!isLoaded) return;
+
+      if (!isSignedIn) {
+        router.navigate("/(auth)");
+      }
+
+      if (isSignedIn && userId) {
+        router.navigate("/(_tabs)");
         setAppIsReady(true);
-      } catch (e) {
-        console.warn(e);
       }
     }
 
     prepare();
-  }, []);
+  }, [isSignedIn, userId, isLoaded]);
 
   useEffect(() => {
     if (appIsReady) {
       SplashScreen.hideAsync();
     }
   }, [appIsReady]);
+
+  if (!isLoaded) {
+    return <Text>Loading...</Text>;
+  }
 
   return (
     <Stack screenOptions={{ statusBarTranslucent: true, headerShown: false }}>
@@ -46,11 +61,13 @@ export const InitialLayout = () => {
 
 export default function RootLayout() {
   return (
-    <GestureHandlerRootView>
-      <SafeAreaProvider>
-        <SystemBars style="auto" />
-        <InitialLayout />
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ClerkProviderWrapper>
+      <GestureHandlerRootView>
+        <SafeAreaProvider>
+          <SystemBars style="auto" />
+          <InitialLayout />
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ClerkProviderWrapper>
   );
 }

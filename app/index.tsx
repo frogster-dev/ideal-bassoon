@@ -8,6 +8,7 @@ import { SecondStep } from "@/components/(onboarding)/second-step";
 import { ThirdStep } from "@/components/(onboarding)/third-step";
 import { Colors } from "@/utils/constants/colors";
 import { defaultStyles } from "@/utils/constants/styles";
+import { SignedOut } from "@clerk/clerk-expo";
 import { useRouter } from "expo-router";
 import { SquircleButton } from "expo-squircle-view";
 
@@ -34,46 +35,48 @@ export default function Page() {
   };
 
   return (
-    <SafeAreaView edges={["top", "bottom"]} style={styles.wrapper}>
-      <View style={{ flex: 1 }}>
-        <Carousel
-          ref={carouselRef}
-          loop={false}
-          width={width}
-          data={CarouselItems}
-          scrollAnimationDuration={500}
-          onSnapToItem={(index) => setActiveIndex(index)}
-          renderItem={({ item }) => item}
-        />
-      </View>
+    <SignedOut>
+      <SafeAreaView edges={["top", "bottom"]} style={styles.wrapper}>
+        <View style={{ flex: 1 }}>
+          <Carousel
+            ref={carouselRef}
+            loop={false}
+            width={width}
+            data={CarouselItems}
+            scrollAnimationDuration={500}
+            onSnapToItem={(index) => setActiveIndex(index)}
+            renderItem={({ item }) => item}
+          />
+        </View>
 
-      <View style={{ gap: 8, marginBottom: bottom === 0 ? 16 : 0 }}>
-        <SquircleButton
-          activeOpacity={0.6}
-          borderRadius={12}
-          style={styles.footerButton}
-          onPress={handleNext}>
-          {activeIndex === 0 ? (
-            <Text style={styles.footerContinueText}>Continuer (1/3)</Text>
-          ) : activeIndex === 1 ? (
-            <Text style={styles.footerContinueText}>Continuer (2/3)</Text>
-          ) : activeIndex >= 2 ? (
-            <Text style={styles.footerContinueText}>Commencer</Text>
-          ) : null}
-        </SquircleButton>
+        <View style={{ gap: 8, marginBottom: bottom === 0 ? 16 : 0 }}>
+          <SquircleButton
+            activeOpacity={0.6}
+            borderRadius={12}
+            style={styles.footerButton}
+            onPress={handleNext}>
+            {activeIndex === 0 ? (
+              <Text style={styles.footerContinueText}>Continuer (1/3)</Text>
+            ) : activeIndex === 1 ? (
+              <Text style={styles.footerContinueText}>Continuer (2/3)</Text>
+            ) : activeIndex >= 2 ? (
+              <Text style={styles.footerContinueText}>Commencer</Text>
+            ) : null}
+          </SquircleButton>
 
-        <SquircleButton
-          borderRadius={12}
-          style={{ backgroundColor: "transparent", padding: 16, marginHorizontal: 16 }}
-          onPress={() => router.navigate("/(auth)")}>
-          <Text
-            style={[defaultStyles.textBold, { color: Colors.dark, textAlign: "center" }]}
-            numberOfLines={1}>
-            J'ai déjà un compte. Me connecter
-          </Text>
-        </SquircleButton>
-      </View>
-    </SafeAreaView>
+          <SquircleButton
+            borderRadius={12}
+            style={{ backgroundColor: "transparent", padding: 16, marginHorizontal: 16 }}
+            onPress={() => router.navigate("/(auth)")}>
+            <Text
+              style={[defaultStyles.textBold, { color: Colors.dark, textAlign: "center" }]}
+              numberOfLines={1}>
+              J'ai déjà un compte. Me connecter
+            </Text>
+          </SquircleButton>
+        </View>
+      </SafeAreaView>
+    </SignedOut>
   );
 }
 

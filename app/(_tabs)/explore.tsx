@@ -1,13 +1,22 @@
-import { Image } from "expo-image";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text } from "react-native";
 
-import { ExternalLink } from "@/components/external-link";
 import ParallaxScrollView from "@/components/parallax-scroll-view";
-import { Collapsible } from "@/components/ui/collapsible";
 import { Colors } from "@/utils/constants/colors";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { defaultStyles } from "@/utils/constants/styles";
+import { useAuth } from "@clerk/clerk-expo";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { SquircleButton } from "expo-squircle-view";
+import { useState } from "react";
 
 export default function TabTwoScreen() {
+  const { signOut } = useAuth();
+  const [logoutLoading, setLogoutLoading] = useState(false);
+
+  const handleLogout = () => {
+    setLogoutLoading(true);
+    signOut();
+  };
+
   return (
     <ParallaxScrollView
       headerBackgroundColor={{ light: "#D0D0D0", dark: "#353636" }}
@@ -19,66 +28,18 @@ export default function TabTwoScreen() {
           style={styles.headerImage}
         />
       }>
-      <View style={styles.titleContainer}>
-        <Text style={{}}>Explore</Text>
-      </View>
-      <Text>This app includes example code to help you get started.</Text>
-      <Collapsible title="File-based routing">
-        <Text>
-          This app has two screens: <Text>app/(tabs)/index.tsx</Text> and{" "}
-          <Text>app/(tabs)/explore.tsx</Text>
-        </Text>
-        <Text>
-          The layout file in <Text>app/(tabs)/_layout.tsx</Text> sets up the tab navigator.
-        </Text>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <Text>Learn more</Text>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <Text>
-          You can open this project on Android, iOS, and the web. To open the web version, press{" "}
-          <Text>w</Text> in the terminal running this project.
-        </Text>
-      </Collapsible>
-      <Collapsible title="Images">
-        <Text>
-          For static images, you can use the <Text>@2x</Text> and <Text>@3x</Text> suffixes to
-          provide files for different screen densities
-        </Text>
-        <Image
-          source={require("@/assets/images/react-logo.png")}
-          style={{ width: 100, height: 100, alignSelf: "center" }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <Text>Learn more</Text>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <Text>
-          This template has light and dark mode support. The <Text>useColorScheme()</Text> hook lets
-          you inspect what the user&apos;s current color scheme is, and so you can adjust UI colors
-          accordingly.
-        </Text>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <Text>Learn more</Text>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <Text>
-          This template includes an example of an animated component. The{" "}
-          <Text>components/HelloWave.tsx</Text> component uses the powerful{" "}
-          <Text>react-native-reanimated</Text> library to create a waving hand animation.
-        </Text>
-        {Platform.select({
-          ios: (
-            <Text>
-              The <Text>components/ParallaxScrollView.tsx</Text> component provides a parallax
-              effect for the header image.
-            </Text>
-          ),
-        })}
-      </Collapsible>
+      <SquircleButton
+        borderRadius={12}
+        style={styles.dangerButton}
+        disabled={logoutLoading}
+        onPress={handleLogout}>
+        <Text style={styles.dangerButtonText}>{"Se déconnecter"}</Text>
+        {logoutLoading ? (
+          <ActivityIndicator size="small" color={Colors.red500} />
+        ) : (
+          <Ionicons name="log-out-outline" size={22} color={Colors.red500} />
+        )}
+      </SquircleButton>
     </ParallaxScrollView>
   );
 }
@@ -94,4 +55,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
   },
+  dangerButton: {
+    height: 48,
+    backgroundColor: Colors.background,
+    padding: 8,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  dangerButtonText: { color: Colors.red500, ...defaultStyles.textBold, flex: 1 },
 });

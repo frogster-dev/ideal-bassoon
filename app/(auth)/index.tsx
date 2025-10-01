@@ -1,11 +1,12 @@
+import SocialsAuthentication from "@/components/(auth)/SocialsAuthentication";
+import { Colors } from "@/utils/constants/colors";
 import React from "react";
-import { Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Page() {
   return (
-    <SafeAreaView>
-      <Text>Page de connexion unique avec bouton google et Apple</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.grayBackground }}>
+      <SocialsAuthentication />
     </SafeAreaView>
   );
 }
