@@ -1,6 +1,7 @@
+import { PauseButton } from "@/components/(session)/pause-button";
 import { Colors } from "@/utils/constants/colors";
 import { defaultStyles } from "@/utils/constants/styles";
-import { SquircleButton, SquircleView } from "expo-squircle-view";
+import { SquircleView } from "expo-squircle-view";
 import React, { useState } from "react";
 import { Image, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -72,9 +73,7 @@ export default function Page() {
       </View>
 
       {/* Bouton pour stopper la session position absolute */}
-      <SquircleButton style={styles.pauseButton} onPress={() => {}} borderRadius={8}>
-        <Text>Stop</Text>
-      </SquircleButton>
+      <PauseButton onPress={() => {}} />
     </SafeAreaView>
   );
 }
