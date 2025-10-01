@@ -28,6 +28,7 @@ export const InitialLayout = () => {
 
       if (!isSignedIn) {
         router.navigate("/(auth)");
+        setAppIsReady(true);
       }
 
       if (isSignedIn && userId) {
