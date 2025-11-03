@@ -1,70 +1,79 @@
-import { ExerciceEntity } from "@/libs/drizzle/database/exercice-entity";
-import { MOCK_EXERCISES } from "./fake-data";
+import { Exercise, exercises } from "@/libs/drizzle/schema";
+import { DATABASE_NAME } from "@/utils/database";
+import { drizzle } from "drizzle-orm/expo-sqlite";
+import { openDatabaseSync } from "expo-sqlite";
 
 /**
- * Simulates a database call to fetch exercises
+ * Fetches all exercises from SQLite database
  * Following React Native/Expo best practices with proper error handling
  */
-export const fetchExercises = async (): Promise<ExerciceEntity[]> => {
+export const fetchExercises = async (): Promise<Exercise[]> => {
   try {
-    console.log("fetching exercises...");
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    console.log("📚 Fetching exercises from database...");
 
-    // Return all exercises
-    return MOCK_EXERCISES;
+    const expoDb = openDatabaseSync(DATABASE_NAME);
+    const db = drizzle(expoDb);
+
+    // Fetch all exercises from database
+    const allExercises = await db.select().from(exercises);
+
+    console.log(`✅ Fetched ${allExercises.length} exercises`);
+
+    return allExercises;
   } catch (error) {
-    console.error("Error fetching exercises:", error);
+    console.error("❌ Error fetching exercises:", error);
     throw error;
   }
 };
 
-export const fetchExercisesForSession = async (
-  currentExercices: ExerciceEntity[],
+/**
+ * Selects exercises for a session from cached exercises
+ * This function does NOT fetch from database - it uses pre-fetched exercises
+ *
+ * @param allExercises - All available exercises (pre-fetched and cached)
+ * @param currentExercices - Currently selected exercises
+ * @param expectedDifficulty - Target difficulty level
+ * @param expectedNumberOfExercices - Number of exercises needed
+ * @returns Array of selected exercises
+ */
+export const selectExercisesForSession = (
+  allExercises: Exercise[],
+  currentExercices: Exercise[],
   expectedDifficulty: number,
   expectedNumberOfExercices: number,
-): Promise<ExerciceEntity[]> => {
-  console.log("\n\n\nexpectedNumberOfExercices", expectedNumberOfExercices);
-  console.log("current exercices", currentExercices.length);
-
+): Exercise[] => {
+  // If we already have the exact number needed, return as is
   if (currentExercices.length === expectedNumberOfExercices) {
     return currentExercices;
   }
 
+  // If we need fewer exercises, truncate the list
   if (currentExercices.length > expectedNumberOfExercices) {
     return currentExercices.slice(0, expectedNumberOfExercices);
   }
 
-  const allExercises = await fetchExercises();
-
-  console.log("all exercices", allExercises.length);
-
+  // We need more exercises
   const exercices = [...currentExercices];
 
+  // Filter out exercises we already have
   const filteredExercices = allExercises.filter((e) => !exercices.some((ex) => ex.id === e.id));
 
-  // Randomize all the exercices to avoid fetching the same exercices everytime
+  // Randomize to avoid same order every time
   const randomizedExercises = filteredExercices.sort(() => 0.5 - Math.random());
 
-  // New exercices available (without the current exercices) sorted by difficulty
+  // Separate by difficulty preference
   const [availableRightDifficultyExercices, availableWrongDifficultyExercices] =
     separateExercicesByDifficulty(randomizedExercises, expectedDifficulty);
 
-  console.log("availableRightDifficultyExercices", availableRightDifficultyExercices.length);
-  console.log("availableWrongDifficultyExercices", availableWrongDifficultyExercices.length);
-
   const numberOfExercicesToAdd = expectedNumberOfExercices - exercices.length;
 
-  console.log("numberOfExercicesToAdd", numberOfExercicesToAdd);
-
-  const newExercices = addElementsFromArrays(
+  // Add new exercises, preferring correct difficulty
+  const newExercices = addElementsFromArrays<Exercise>(
     numberOfExercicesToAdd,
     availableRightDifficultyExercices,
     availableWrongDifficultyExercices,
     exercices,
   );
-
-  console.log("exercices--", newExercices.length);
 
   return newExercices;
 };
@@ -75,11 +84,11 @@ export const fetchExercisesForSession = async (
  * 2. without the current exercices and wrong difficulty
  */
 const separateExercicesByDifficulty = (
-  exercices: ExerciceEntity[],
+  exercices: Exercise[],
   difficulty: number,
-): [ExerciceEntity[], ExerciceEntity[]] => {
+): [Exercise[], Exercise[]] => {
   return exercices.reduce(
-    (acc: [ExerciceEntity[], ExerciceEntity[]], ex: ExerciceEntity) => {
+    (acc: [Exercise[], Exercise[]], ex: Exercise) => {
       if (ex.difficulties.includes(difficulty)) {
         acc[0].push(ex);
       } else {

@@ -4,10 +4,22 @@ import { SquircleButton, SquircleButtonProps } from "expo-squircle-view";
 import React from "react";
 import { StyleSheet } from "react-native";
 
-export const PauseButton = ({ onPress }: SquircleButtonProps) => {
+interface PauseButtonProps extends SquircleButtonProps {
+  isPaused: boolean;
+}
+
+export const PauseButton = ({ onPress, isPaused }: PauseButtonProps) => {
   return (
-    <SquircleButton style={styles.container} borderRadius={8}>
-      <MaterialCommunityIcons name="pause" size={24} color={Colors.slate200} />
+    <SquircleButton
+      style={[styles.container, { backgroundColor: isPaused ? Colors.primary700 : Colors.dark }]}
+      borderRadius={8}
+      onPress={onPress}
+      activeOpacity={0.8}>
+      {isPaused ? (
+        <MaterialCommunityIcons name="play" size={24} color={Colors.slate200} />
+      ) : (
+        <MaterialCommunityIcons name="pause" size={24} color={Colors.slate200} />
+      )}
     </SquircleButton>
   );
 };
@@ -15,8 +27,8 @@ const styles = StyleSheet.create({
   container: {
     height: 56,
     position: "absolute",
-    bottom: 32,
-    left: 16,
+    bottom: 16,
+    right: 16,
     width: 56,
     backgroundColor: Colors.dark,
     shadowColor: Colors.dark,

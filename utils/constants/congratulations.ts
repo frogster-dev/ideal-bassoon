@@ -1,0 +1,17 @@
+export const STRETCH_SESSION_CONGRATULATIONS = [
+  "Félicitations pour avoir terminé votre séance d'étirements",
+  "Votre corps vous remercie pour ces moments de bien-être",
+  "Chaque séance vous rapproche d'une meilleure santé",
+  "Votre persévérance porte ses fruits jour après jour",
+  "Prendre soin de soi est un acte de courage quotidien",
+  "Votre mentalité positive transforme votre bien-être",
+  "Ces étirements renforcent votre corps et votre esprit",
+  "La régularité est la clé de votre réussite",
+  "Vous investissez dans votre santé future",
+  "Chaque mouvement compte pour votre équilibre",
+  "Votre détermination inspire votre progression",
+  "Ces moments de pause nourrissent votre vitalité",
+  "Votre engagement envers vous-même est admirable",
+  "La constance transforme les petits gestes en grandes victoires",
+  "Vous méritez cette pause bienfaisante pour votre corps",
+];

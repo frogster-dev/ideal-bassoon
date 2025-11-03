@@ -16,7 +16,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: "Accueil",
           tabBarIcon: ({ color }) => <MaterialCommunityIcons name="home" size={24} color={color} />,
         }}
       />
@@ -24,7 +24,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="start"
         options={{
-          title: "Seance d'étirement",
+          title: "S'étirer",
           tabBarIcon: ({ color }) => (
             <MaterialCommunityIcons name="record-circle" size={24} color={color} />
           ),

@@ -3,6 +3,12 @@ export const Colors = {
   grayBackground: "#f5f5f5",
   dark: "#1D1B20",
 
+  // BLUE
+  blue50: "#f0f9ff",
+  blue200: "#bae6fd",
+  blue500: "#0ea5e9",
+  blue900: "#0c4a6e",
+
   // RED
   red500: "#EF4444",
   red200: "#FECACA",
@@ -30,6 +36,7 @@ export const Colors = {
 
   // Primary colors
   primary700: "#0F766E",
+  primary500: "#14b8a6",
   primary200: "#99F6E4",
   primary50: "#F0FDFA",
 };

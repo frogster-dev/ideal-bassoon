@@ -1,69 +1,78 @@
-import { ActivityIndicator, StyleSheet, Text } from "react-native";
-
-import ParallaxScrollView from "@/components/parallax-scroll-view";
+import { Header } from "@/components/ui/header";
 import { Colors } from "@/utils/constants/colors";
 import { defaultStyles } from "@/utils/constants/styles";
-import { useAuth } from "@clerk/clerk-expo";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useAuth, useUser } from "@clerk/clerk-expo";
+import { Ionicons } from "@expo/vector-icons";
 import { SquircleButton } from "expo-squircle-view";
 import { useState } from "react";
+import { ActivityIndicator, StyleSheet, Text } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-export default function TabTwoScreen() {
-  const { signOut } = useAuth();
+export default function HomeScreen() {
+  const { user } = useUser();
+  const { userId, signOut } = useAuth();
+  const { top } = useSafeAreaInsets();
   const [logoutLoading, setLogoutLoading] = useState(false);
-
   const handleLogout = () => {
     setLogoutLoading(true);
     signOut();
   };
 
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: "#D0D0D0", dark: "#353636" }}
-      headerImage={
-        <MaterialCommunityIcons
-          name="account-box-outline"
-          size={310}
-          color={Colors.primary700}
-          style={styles.headerImage}
-        />
-      }>
+    <SafeAreaView edges={["left", "right"]} style={styles.container}>
+      <Header />
+
+      {/* Logout Section */}
       <SquircleButton
         borderRadius={12}
-        style={styles.dangerButton}
+        style={styles.logoutButton}
         disabled={logoutLoading}
         onPress={handleLogout}>
-        <Text style={styles.dangerButtonText}>{"Se déconnecter"}</Text>
+        <Text style={styles.dangerButtonText}>Se déconnecter</Text>
         {logoutLoading ? (
           <ActivityIndicator size="small" color={Colors.red500} />
         ) : (
           <Ionicons name="log-out-outline" size={22} color={Colors.red500} />
         )}
       </SquircleButton>
-    </ParallaxScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: "#808080",
-    bottom: -90,
-    left: -35,
-    position: "absolute",
+  greeting: { color: Colors.background },
+  userName: {
+    ...defaultStyles.textXL,
+    ...defaultStyles.textBold,
+    color: Colors.background,
+    marginTop: 4,
   },
-  titleContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: Colors.grayBackground,
+  },
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: "#fff",
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: "#fff",
+    opacity: 0.9,
+  },
+  dangerButtonText: {
+    color: Colors.red500,
+    ...defaultStyles.textL,
+    ...defaultStyles.textBold,
+  },
+  logoutButton: {
+    height: 48,
     flexDirection: "row",
     gap: 8,
-  },
-  dangerButton: {
-    height: 48,
-    backgroundColor: Colors.background,
-    padding: 8,
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
+    backgroundColor: Colors.red50,
     justifyContent: "center",
-    gap: 12,
+    alignItems: "center",
   },
-  dangerButtonText: { color: Colors.red500, ...defaultStyles.textBold, flex: 1 },
 });

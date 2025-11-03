@@ -5,54 +5,47 @@ import { StyleSheet, Text, View } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { CustomSlider, SliderOption } from "@/components/ui/custom-slider";
+import { CustomSlider } from "@/components/ui/custom-slider";
 import { Line } from "@/components/ui/line";
 import { SegmentedProjectPriorityButton } from "@/components/ui/segmented-difficulty-buttonts";
+import * as schema from "@/libs/drizzle/schema";
 import { useInSessionStore } from "@/libs/zustand/in-session-store";
+import { createSession } from "@/services/session-service";
 import { Colors } from "@/utils/constants/colors";
+import {
+  effortDurationOptions,
+  effortDurationOptionsDev,
+  exerciseDurationOptions,
+  exerciseDurationOptionsDev,
+  pauseDurationOptions,
+  pauseDurationOptionsDev,
+} from "@/utils/constants/session";
 import { defaultStyles } from "@/utils/constants/styles";
+import { getExerciseImage } from "@/utils/exercise-images";
+import { useAuth } from "@clerk/clerk-expo";
+import { drizzle } from "drizzle-orm/expo-sqlite";
+import { Image } from "expo-image";
+import { useSQLiteContext } from "expo-sqlite";
 
 export default function Page() {
   const router = useRouter();
+  const { userId } = useAuth();
+  const db = useSQLiteContext();
+  const drizzleDb = drizzle(db, { schema });
 
-  const { exercices, initializeSession, isLoading } = useInSessionStore();
+  const { exercices, initializeSession, isLoading, setSessionId } = useInSessionStore();
 
-  // Durée d'éffort en seconds (min: 10min, max: 25min)
-  const [effortDuration, setEffortDuration] = useState(10 * 60);
+  // Durée d'éffort en seconds (min: 10min, max: 25min in prod | 1min-4min in dev)
+  const [effortDuration, setEffortDuration] = useState(__DEV__ ? 1 * 60 : 10 * 60);
 
-  // Durée de pause entre chaque exercices en seconds (min: 5sec, max: 60sec)
-  const [pauseDuration, setPauseDuration] = useState(5);
+  // Durée de pause entre chaque exercices en seconds (min: 5sec, max: 60sec in prod | 2sec-8sec in dev)
+  const [pauseDuration, setPauseDuration] = useState(__DEV__ ? 2 : 5);
 
-  // Durée pour chaque exercices en seconds (min: 30sec, max: 60sec)
-  const [exerciseDuration, setExerciseDuration] = useState(30);
+  // Durée pour chaque exercices en seconds (min: 30sec, max: 60sec in prod | 4sec-16sec in dev)
+  const [exerciseDuration, setExerciseDuration] = useState(__DEV__ ? 4 : 30);
 
   // Difficulté des exercices (min: 1, max: 3) (1 is easy, 2 is medium, 3 is hard)
   const [difficulty, setDifficulty] = useState(1);
-
-  // Slider options
-  const effortDurationOptions: SliderOption[] = [
-    { label: "~10min", value: 10 * 60 },
-    { label: "~15min", value: 15 * 60 },
-    { label: "~20min", value: 20 * 60 },
-    { label: "~25min", value: 25 * 60 },
-  ];
-
-  const pauseDurationOptions: SliderOption[] = [
-    { label: "5sec", value: 0 },
-    { label: "10sec", value: 10 },
-    { label: "20sec", value: 20 },
-    { label: "30sec", value: 30 },
-    { label: "40sec", value: 40 },
-    { label: "50sec", value: 50 },
-    { label: "60sec", value: 60 },
-  ];
-
-  const exerciseDurationOptions: SliderOption[] = [
-    { label: "30sec", value: 30 },
-    { label: "40sec", value: 40 },
-    { label: "50sec", value: 50 },
-    { label: "60sec", value: 60 },
-  ];
 
   const [numberOfPossiblesExercices, totalTime, pauseTime] = useMemo(() => {
     // In seconds
@@ -77,10 +70,6 @@ export default function Page() {
   }, [effortDuration, pauseDuration, exerciseDuration]);
 
   useEffect(() => {
-    console.log("exercices", exercices.length);
-  }, [exercices]);
-
-  useEffect(() => {
     initializeSession({
       numberOfExercices: numberOfPossiblesExercices,
       duration: exerciseDuration,
@@ -88,6 +77,26 @@ export default function Page() {
       difficulty,
     });
   }, [numberOfPossiblesExercices, exerciseDuration, pauseDuration, difficulty]);
+
+  const handleStartSession = async () => {
+    if (!userId || isLoading || exercices.length === 0) return;
+
+    try {
+      const session = await createSession(drizzleDb, {
+        userId,
+        difficulty,
+        numberOfExercices: numberOfPossiblesExercices,
+        exerciseDuration,
+        pauseDuration,
+        exercices,
+      });
+
+      setSessionId(session.id);
+      router.replace("/(session)");
+    } catch (error) {
+      console.error("Failed to create session:", error);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -100,26 +109,26 @@ export default function Page() {
 
           <CustomSlider
             title="Durée d'effort"
-            options={effortDurationOptions}
+            options={__DEV__ ? effortDurationOptionsDev : effortDurationOptions}
             value={effortDuration}
             onValueChange={setEffortDuration}
-            step={5 * 60} // 5 minutes step
+            step={__DEV__ ? 1 * 60 : 5 * 60} // 1 minute step in DEV, 5 minutes in prod
           />
 
           <CustomSlider
             title="Durée de pause entre exercices"
-            options={pauseDurationOptions}
+            options={__DEV__ ? pauseDurationOptionsDev : pauseDurationOptions}
             value={pauseDuration}
-            onValueChange={(value) => setPauseDuration(!value ? 5 : value)}
-            step={10} // 10 seconds step
+            onValueChange={(value) => setPauseDuration(!value ? (__DEV__ ? 2 : 5) : value)}
+            step={__DEV__ ? 2 : 10} // 2 seconds step in DEV, 10 seconds in prod
           />
 
           <CustomSlider
             title="Durée de chaque exercice"
-            options={exerciseDurationOptions}
+            options={__DEV__ ? exerciseDurationOptionsDev : exerciseDurationOptions}
             value={exerciseDuration}
             onValueChange={setExerciseDuration}
-            step={10} // 10 seconds step
+            step={__DEV__ ? 4 : 10} // 4 seconds step in DEV, 10 seconds in prod
           />
 
           <SegmentedProjectPriorityButton
@@ -149,7 +158,17 @@ export default function Page() {
           <View style={{ gap: 16 }}>
             {exercices.map((exercice) => (
               <View key={exercice.id} style={{ flexDirection: "row", alignItems: "center" }}>
-                <Text>{exercice.title}</Text>
+                <Text style={{ flex: 1 }}>{exercice.title}</Text>
+                <Image
+                  source={getExerciseImage(exercice.image)}
+                  style={{
+                    width: 42,
+                    height: 42,
+                    backgroundColor: Colors.slate200,
+                    borderRadius: 6,
+                  }}
+                  contentFit="cover"
+                />
               </View>
             ))}
           </View>
@@ -163,7 +182,7 @@ export default function Page() {
 
         <SquircleButton
           style={[styles.button, styles.shadow, { opacity: isLoading ? 0.5 : 1 }]}
-          onPress={() => router.replace("/(session)")}
+          onPress={handleStartSession}
           disabled={isLoading}>
           <Text style={styles.buttonText}>
             {isLoading ? "Chargement des exercices..." : "Commencer la séance"}

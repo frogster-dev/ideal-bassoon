@@ -1,4 +1,5 @@
 import ClerkProviderWrapper from "@/libs/clerk-provider-wrapper";
+import { ExpoSqliteProvider } from "@/libs/expo-sqlite.provider";
 import { useAuth } from "@clerk/clerk-expo";
 import { SplashScreen, Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
@@ -11,7 +12,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 // Catch any errors thrown by the Layout component.
 export { ErrorBoundary } from "expo-router";
 
-export const unstable_settings = { anchor: "(tabs)" };
+export const unstable_settings = { anchor: "(_tabs)" };
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -23,6 +24,11 @@ export const InitialLayout = () => {
   const { isSignedIn, isLoaded, userId } = useAuth();
 
   useEffect(() => {
+    console.log("InitialLayout");
+  }, []);
+
+  useEffect(() => {
+    console.log("isLoaded", isLoaded, "isSignedIn", isSignedIn, "userId", userId);
     async function prepare() {
       if (!isLoaded) return;
 
@@ -62,13 +68,15 @@ export const InitialLayout = () => {
 
 export default function RootLayout() {
   return (
-    <ClerkProviderWrapper>
-      <GestureHandlerRootView>
-        <SafeAreaProvider>
-          <SystemBars style="auto" />
-          <InitialLayout />
-        </SafeAreaProvider>
-      </GestureHandlerRootView>
-    </ClerkProviderWrapper>
+    <ExpoSqliteProvider>
+      <ClerkProviderWrapper>
+        <GestureHandlerRootView>
+          <SafeAreaProvider>
+            <SystemBars style="auto" />
+            <InitialLayout />
+          </SafeAreaProvider>
+        </GestureHandlerRootView>
+      </ClerkProviderWrapper>
+    </ExpoSqliteProvider>
   );
 }

@@ -1,114 +1,98 @@
-import { fetchExercisesForSession } from "@/services/exercise-service";
-import { Exercice, InitializaSessionInput } from "@/utils/interfaces/exercice";
-import { MMKVStorageName, zustandStorage } from "@/utils/mmkv";
+import { Exercise } from "@/libs/drizzle/schema";
+import { fetchExercises, selectExercisesForSession } from "@/services/exercise-service";
+import { ExerciseWithDuration, InitializaSessionInput } from "@/utils/interfaces/exercice";
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
 
 interface InSessionStore {
-  exercices: Exercice[];
-  isPaused: boolean;
+  exercices: ExerciseWithDuration[];
+  allExercises: Exercise[];
   isLoading: boolean;
   error: string | null;
+  sessionId: string | null;
+  sessionParams: InitializaSessionInput | null;
 
   initializeSession: (input: InitializaSessionInput) => Promise<void>;
-  getCurrentExercice: () => { current: Exercice | null; next: Exercice | null };
+  setSessionId: (sessionId: string) => void;
   clearSession: () => void;
-  setPaused: (paused: boolean) => void;
 }
 
-// Helper functions for session management
-const getSessionCompleteState = () => ({
-  isLoading: false,
-  error: null,
-  isPaused: false,
-});
-
-const setSessionComplete = (set: any) => set(getSessionCompleteState());
-
-const fetchAndSetNewExercises = async (
+// Helper function to select and map exercises based on current state
+const selectAndMapExercises = (
+  allExercises: Exercise[],
+  currentExercices: ExerciseWithDuration[],
   input: InitializaSessionInput,
-  currentExercices: Exercice[],
-  set: any,
-) => {
-  try {
-    const exercices = await fetchExercisesForSession(
-      currentExercices,
-      input.difficulty,
-      input.numberOfExercices,
-    );
+): ExerciseWithDuration[] => {
+  const selectedExercises = selectExercisesForSession(
+    allExercises,
+    currentExercices,
+    input.difficulty,
+    input.numberOfExercices,
+  );
 
-    set({
-      exercices: exercices.map((e) => ({ ...e, duration: input.duration })),
-      ...getSessionCompleteState(),
-    });
-  } catch (error) {
-    set({
-      isLoading: false,
-      error: error instanceof Error ? error.message : "Failed to initialize session",
-      exercices: [],
-    });
-  }
+  return selectedExercises.map((e) => ({ ...e, duration: input.duration }));
 };
 
-export const useInSessionStore = create<InSessionStore>()(
-  persist(
-    (set, get) => ({
+export const useInSessionStore = create<InSessionStore>()((set, get) => ({
+  exercices: [],
+  allExercises: [],
+  isLoading: false,
+  error: null,
+  sessionId: null,
+  sessionParams: null,
+
+  initializeSession: async (input: InitializaSessionInput) => {
+    const { exercices: currentExercices, allExercises, sessionParams } = get();
+
+    // Check if we need to update based on actual changes
+    const needsUpdate =
+      !sessionParams ||
+      sessionParams.numberOfExercices !== input.numberOfExercices ||
+      sessionParams.difficulty !== input.difficulty ||
+      sessionParams.duration !== input.duration;
+
+    if (!needsUpdate) {
+      return;
+    }
+
+    set({ isLoading: true, error: null, sessionParams: input });
+
+    try {
+      // Fetch all exercises only if not already cached
+      let exercises = allExercises;
+      if (exercises.length === 0) {
+        console.log("📚 Fetching all exercises for the first time...");
+        exercises = await fetchExercises();
+        console.log(`✅ Cached ${exercises.length} exercises`);
+      }
+
+      // Select exercises based on input parameters
+      const selectedExercises = selectAndMapExercises(exercises, currentExercices, input);
+
+      set({
+        allExercises: exercises,
+        exercices: selectedExercises,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error) {
+      set({
+        isLoading: false,
+        error: error instanceof Error ? error.message : "Failed to initialize session",
+        exercices: [],
+      });
+      console.error("❌ Error initializing session:", error);
+    }
+  },
+
+  setSessionId: (sessionId: string) => set({ sessionId }),
+
+  clearSession: () =>
+    set({
       exercices: [],
-      isPaused: false,
       isLoading: false,
       error: null,
-
-      initializeSession: async (input: InitializaSessionInput) => {
-        set({ isLoading: true, error: null });
-
-        const { exercices: currentExercices } = get();
-        const prevNumberOfExercices = currentExercices.length;
-
-        // Early return if no change needed
-        if (prevNumberOfExercices === input.numberOfExercices) {
-          setSessionComplete(set);
-          return;
-        }
-
-        // Reduce exercises if fewer needed
-        if (input.numberOfExercices < prevNumberOfExercices) {
-          set({
-            exercices: currentExercices.slice(0, input.numberOfExercices),
-            ...getSessionCompleteState(),
-          });
-          return;
-        }
-
-        // Fetch additional exercises
-        await fetchAndSetNewExercises(input, currentExercices, set);
-      },
-
-      getCurrentExercice: () => {
-        const { exercices } = get();
-        if (exercices.length === 0) {
-          return { current: null, next: null };
-        }
-
-        const currentIndex = 0; // You might want to track current index in the store
-        return {
-          current: exercices[currentIndex] || null,
-          next: exercices[currentIndex + 1] || null,
-        };
-      },
-
-      clearSession: () =>
-        set({
-          exercices: [],
-          isPaused: false,
-          isLoading: false,
-          error: null,
-        }),
-
-      setPaused: (paused: boolean) => set({ isPaused: paused }),
+      sessionId: null,
+      sessionParams: null,
+      // Keep allExercises cached for future sessions
     }),
-    {
-      name: MMKVStorageName.IN_SESSION,
-      storage: createJSONStorage(() => zustandStorage),
-    },
-  ),
-);
+}));

@@ -1,0 +1,1 @@
+ALTER TABLE `sessions` ADD `title` text DEFAULT 'test' NOT NULL;
