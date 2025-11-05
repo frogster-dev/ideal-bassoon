@@ -1,35 +1,53 @@
 import { Colors } from "@/utils/constants/colors";
+import { defaultStyles } from "@/utils/constants/styles";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { SquircleButton, SquircleButtonProps } from "expo-squircle-view";
-import React from "react";
-import { StyleSheet } from "react-native";
+import React, { useEffect } from "react";
+import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 
 interface PauseButtonProps extends SquircleButtonProps {
   isPaused: boolean;
 }
 
 export const PauseButton = ({ onPress, isPaused }: PauseButtonProps) => {
+  const { width: screenWidth } = useWindowDimensions();
+  const buttonWidth = useSharedValue(56);
+
+  useEffect(() => {
+    buttonWidth.value = withTiming(isPaused ? screenWidth - 32 : 56, {
+      duration: 300,
+    });
+  }, [isPaused, screenWidth]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      width: buttonWidth.value,
+    };
+  });
+
   return (
-    <SquircleButton
-      style={[styles.container, { backgroundColor: isPaused ? Colors.primary700 : Colors.dark }]}
-      borderRadius={8}
-      onPress={onPress}
-      activeOpacity={0.8}>
-      {isPaused ? (
-        <MaterialCommunityIcons name="play" size={24} color={Colors.slate200} />
-      ) : (
-        <MaterialCommunityIcons name="pause" size={24} color={Colors.slate200} />
-      )}
-    </SquircleButton>
+    <Animated.View style={animatedStyle}>
+      <SquircleButton
+        style={[styles.button, { backgroundColor: isPaused ? Colors.background : Colors.dark }]}
+        borderRadius={10}
+        onPress={onPress}
+        activeOpacity={1}>
+        {isPaused ? (
+          <View style={styles.buttonContent}>
+            <Text style={{ color: Colors.primary700, ...defaultStyles.textBold }}>Reprendre</Text>
+            <MaterialCommunityIcons name="play" size={24} color={Colors.primary700} />
+          </View>
+        ) : (
+          <MaterialCommunityIcons name="pause" size={24} color={Colors.slate200} />
+        )}
+      </SquircleButton>
+    </Animated.View>
   );
 };
 const styles = StyleSheet.create({
-  container: {
+  button: {
     height: 56,
-    position: "absolute",
-    bottom: 16,
-    right: 16,
-    width: 56,
     backgroundColor: Colors.dark,
     shadowColor: Colors.dark,
     justifyContent: "center",
@@ -41,4 +59,5 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
+  buttonContent: { flexDirection: "row", alignItems: "center", gap: 8 },
 });

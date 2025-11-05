@@ -4,14 +4,16 @@ import {
 } from "@/components/(session)/beginning-session-modal";
 import { CurrentExerciseDisplay } from "@/components/(session)/current-exercise-display";
 import { NextExerciseDisplay } from "@/components/(session)/next-exercise-display";
-import { PauseButton } from "@/components/(session)/pause-button";
+import { PauseOverlay } from "@/components/ui/pause-overlay";
 import { useBeginningSessionTimer } from "@/hooks/beginning-session-timer";
 import { useTimer } from "@/hooks/use-timer";
 import { useInSessionStore } from "@/libs/zustand/in-session-store";
+import { useSessionPreferences } from "@/libs/zustand/session-preferences-store";
 import { Colors } from "@/utils/constants/colors";
 import { defaultStyles } from "@/utils/constants/styles";
+import { useSounds } from "@/utils/sounds";
 import { useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -26,6 +28,8 @@ type SessionState = {
 export default function Page() {
   const router = useRouter();
 
+  const { soundsEnabled } = useSessionPreferences();
+
   // Index of the current exercice
   const [index, setIndex] = useState(0);
 
@@ -36,12 +40,24 @@ export default function Page() {
   });
 
   const { exercices, sessionParams } = useInSessionStore();
+
+  const { playStartSession, playEndSession, playStartRest, playEndRest } = useSounds();
   const [beginningModalVisible, setBeginningModalVisible] = useState(true);
+
+  // Track if we've already played the start-rest sound for the current rest period
+  const startRestSoundPlayedRef = useRef(false);
 
   const [currentExercice, nextExercice] = useMemo(
     () => [exercices[index], exercices[index + 1]],
     [index, exercices],
   );
+
+  // Reset the start-rest sound flag when starting a new exercise
+  useEffect(() => {
+    if (sessionState.current === "exercices") {
+      startRestSoundPlayedRef.current = false;
+    }
+  }, [index, sessionState.current]);
 
   // Main exercise timer
   const { timeLeft, timerFinished, startTimer, pauseTimer, resumeTimer, stopTimer } = useTimer();
@@ -69,11 +85,14 @@ export default function Page() {
       setBeginningModalVisible(false);
       setSessionState((prev) => ({ previous: prev.current, current: "exercices" }));
 
+      // Play start session
+      if (soundsEnabled) playStartSession();
+
       // Start the main timer with the duration of the first exercice
       const initialTime = exercices[0]?.duration ?? 100;
       startTimer(initialTime);
     }
-  }, [beginningTimerFinished, exercices]);
+  }, [beginningTimerFinished, exercices, playStartSession, startTimer]);
 
   // Handle main timer - transition to rest when exercise finishes
   useEffect(() => {
@@ -87,14 +106,32 @@ export default function Page() {
         setSessionState((prev) => ({ previous: prev.current, current: "exerciseRest" }));
         const pauseDuration = sessionParams?.pauseDuration ?? 10;
         startRestTimer(pauseDuration);
+
+        // Play the sound
+        if (soundsEnabled) playStartRest();
+
+        // Reset the flag so we can play the sound for this new rest period
+        startRestSoundPlayedRef.current = false;
       } else {
-        // Session is complete
+        // Session is complete - play end session sound
+        if (soundsEnabled) playEndSession();
         stopTimer();
         pauseBeginningTimer();
         router.push("/(session)/end");
       }
     }
-  }, [sessionState, timerFinished, index, exercices, sessionParams]);
+  }, [
+    sessionState,
+    timerFinished,
+    index,
+    exercices,
+    sessionParams,
+    playEndSession,
+    startRestTimer,
+    stopTimer,
+    pauseBeginningTimer,
+    router,
+  ]);
 
   // Handle rest timer - start next exercise when rest finishes
   useEffect(() => {
@@ -105,8 +142,13 @@ export default function Page() {
       setIndex(newIndex);
       setSessionState((prev) => ({ previous: prev.current, current: "exercices" }));
       startTimer(exercices[newIndex]?.duration ?? 100);
+    } else {
+      // Start the End Rest sound 2 seconds before the exercise ends
+      if (restTimeLeft === 2) {
+        if (soundsEnabled) playEndRest();
+      }
     }
-  }, [sessionState, restTimerFinished, index, exercices]);
+  }, [sessionState, restTimerFinished, restTimeLeft, index, exercices, playEndRest, startTimer]);
 
   const handlePauseButtonPress = () => {
     if (sessionState.current !== "pause") {
@@ -172,21 +214,25 @@ export default function Page() {
           </View>
 
           <View style={{ flex: 1, gap: 16 }}>
-            {/* Current exercise - memoized to prevent re-renders */}
             {currentExercice && <CurrentExerciseDisplay exercise={currentExercice} />}
 
-            {/* Next exercise - memoized to prevent re-renders */}
             {nextExercice && <NextExerciseDisplay exercise={nextExercice} />}
           </View>
 
-          {/* Bouton pour stopper la session position absolute */}
-          <PauseButton
-            onPress={handlePauseButtonPress}
+          <PauseOverlay
             isPaused={sessionState.current === "pause"}
+            onPress={handlePauseButtonPress}
           />
 
+          {/* Bouton pour stopper la session position absolute */}
+          {/* <PauseButton
+            onPress={handlePauseButtonPress}
+            isPaused={sessionState.current === "pause"}
+          /> */}
+
           {/* Rest timer overlay with fade-in animation */}
-          {sessionState.current === "exerciseRest" && (
+          {(sessionState.current === "exerciseRest" ||
+            (sessionState.current === "pause" && sessionState.previous === "exerciseRest")) && (
             <Animated.View entering={FadeIn} style={styles.restOverlay}>
               <Text style={styles.restTimerText}>{restTimeLeft}</Text>
               <Text style={styles.restLabel}>Rest</Text>

@@ -22,6 +22,7 @@
     "babel-plugin-inline-import": "^3.0.0",
     "drizzle-orm": "^0.44.7",
     "expo": "54.0.20",
+    "expo-audio": "~1.0.14",
     "expo-constants": "~18.0.9",
     "expo-crypto": "~15.0.7",
     "expo-drizzle-studio-plugin": "^0.2.1",
