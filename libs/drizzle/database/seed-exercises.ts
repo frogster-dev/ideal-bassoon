@@ -15,6 +15,12 @@ export const seedExercises = async (): Promise<void> => {
     const expoDb = openDatabaseSync(DATABASE_NAME);
     const db = drizzle(expoDb);
 
+    console.log("🗑️ Clearing existing exercises...");
+    /**
+     * @todo try to remove it before production
+     */
+    await db.delete(exercises);
+
     // Always upsert exercises (insert or update if exists)
     // This allows us to update exercise data during development
     for (const exercise of EXERCISES_SEED_DATA) {

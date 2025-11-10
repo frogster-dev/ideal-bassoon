@@ -73,8 +73,13 @@ export default function Page() {
   } = useTimer();
 
   // Beginning session timer (start at the first render)
-  const { beginningTimeLeft, beginningTimerFinished, pauseBeginningTimer, resumeBeginningTimer } =
-    useBeginningSessionTimer(BEGINNING_SESSION_MODAL_TIMER);
+  const {
+    beginningTimeLeft,
+    beginningTimerFinished,
+    pauseBeginningTimer,
+    resumeBeginningTimer,
+    addTimeToBeginningTimer,
+  } = useBeginningSessionTimer(BEGINNING_SESSION_MODAL_TIMER);
 
   // Handle beginning timer and modal
   useEffect(() => {
@@ -192,6 +197,7 @@ export default function Page() {
           timer={beginningTimeLeft}
           visible={beginningModalVisible}
           onRequestClose={() => setBeginningModalVisible(false)}
+          onAddTime={addTimeToBeginningTimer}
         />
 
         {/* Chronometre pour montrer le temps de l'exercice et d'attente */}

@@ -5,6 +5,7 @@ type TUseTimer = {
   beginningTimerFinished: boolean;
   pauseBeginningTimer: () => void;
   resumeBeginningTimer: () => void;
+  addTimeToBeginningTimer: (secondsToAdd: number) => void;
 };
 
 type TimerState = "finished" | "running" | "paused";
@@ -20,6 +21,14 @@ export const useBeginningSessionTimer = (initialTimeInSeconds: number): TUseTime
 
   const resumeBeginningTimer = () => {
     setTimerState("running");
+  };
+
+  const addTimeToBeginningTimer = (secondsToAdd: number) => {
+    setTimeLeft((prev) => {
+      const newTime = prev + secondsToAdd;
+      // Cap at 60 seconds max
+      return Math.min(newTime, 60);
+    });
   };
 
   // Timer countdown logic
@@ -45,5 +54,6 @@ export const useBeginningSessionTimer = (initialTimeInSeconds: number): TUseTime
     beginningTimerFinished: timerFinished,
     pauseBeginningTimer,
     resumeBeginningTimer,
+    addTimeToBeginningTimer,
   };
 };
