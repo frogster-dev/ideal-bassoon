@@ -3,11 +3,13 @@ import { useRouter } from "expo-router";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { useTranslation } from "@/hooks/use-translation";
 import { Colors } from "@/utils/constants/colors";
 import { defaultStyles } from "@/utils/constants/styles";
 
 export default function Page() {
   const router = useRouter();
+  const { t } = useTranslation();
 
   const handleRedirect = () => {
     router.navigate("/");
@@ -16,13 +18,13 @@ export default function Page() {
   return (
     <SafeAreaView style={styles.safeAreaView}>
       <View style={styles.container}>
-        <Text style={{ color: Colors.dark }}>Oups... Page introuvable</Text>
+        <Text style={{ color: Colors.dark }}>{t("errors.pageNotFound")}</Text>
 
         <TouchableOpacity onPress={handleRedirect} style={styles.redirectButton}>
           <Ionicons name="arrow-back-outline" size={24} color={Colors.background} />
 
           <Text style={[defaultStyles.textBold, { color: Colors.background }]}>
-            Retourner à l'accueil
+            {t("errors.backToHome")}
           </Text>
         </TouchableOpacity>
       </View>

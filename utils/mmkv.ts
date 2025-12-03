@@ -23,4 +23,5 @@ export const zustandStorage: StateStorage = {
 export enum MMKVStorageName {
   IN_SESSION = "in-session-storage",
   SESSION_PREFERENCES = "session-preferences",
+  APP_PREFERENCES = "app-preferences",
 }

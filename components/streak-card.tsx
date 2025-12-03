@@ -5,7 +5,13 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { AnimatedFireIcon } from "./animated-fire-icon";
 
-export const StreakCard = () => {
+interface StreakCardProps {
+  streak: number;
+}
+
+export const StreakCard = ({ streak }: StreakCardProps) => {
+  const text = streak > 1 ? `${streak} jours d'affilés !` : `${streak} jour d'affilé !`;
+
   return (
     <SquircleView style={styles.container}>
       <View style={styles.fireIconContainer}>
@@ -13,7 +19,7 @@ export const StreakCard = () => {
       </View>
 
       <View style={styles.textContainer}>
-        <Text style={styles.title}>4 jours d'affilés !</Text>
+        <Text style={styles.title}>{text}</Text>
         <Text style={styles.description}>
           Continuez de vous étirer tous les jours pour augmenter votre streak !
         </Text>

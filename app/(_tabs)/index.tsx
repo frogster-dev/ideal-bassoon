@@ -6,13 +6,14 @@ import { SessionCardPlaceholder } from "@/components/session-card-placeholder";
 import { StatsCard } from "@/components/stats-card";
 import { FirstTimeChallenge } from "@/components/ui/first-time-challenge";
 import { Header } from "@/components/ui/header";
+import { useTranslation } from "@/hooks/use-translation";
 import type { Session } from "@/libs/drizzle/schema";
 import * as schema from "@/libs/drizzle/schema";
 import { UserSessionStats, getUserSessionStats, getUserSessions } from "@/services/session-service";
 import { Colors } from "@/utils/constants/colors";
 import { defaultStyles } from "@/utils/constants/styles";
 import { formatEffortDurationTime } from "@/utils/session";
-import { useAuth, useUser } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/clerk-expo";
 import { drizzle } from "drizzle-orm/expo-sqlite";
 import { useSQLiteContext } from "expo-sqlite";
 import { useEffect, useState } from "react";
@@ -26,7 +27,7 @@ interface DayActivity {
 
 export default function ExploreScreen() {
   const { userId } = useAuth();
-  const { user } = useUser();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const { top } = useSafeAreaInsets();
@@ -127,7 +128,7 @@ export default function ExploreScreen() {
           <FirstTimeChallenge />
 
           <Text style={[styles.title, { opacity: 0.5, marginVertical: 16 }]}>
-            Vos séances apparaitront ici
+            {t("session.yourSessionsWillAppearHere")}
           </Text>
           <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
             <SessionCardPlaceholder
@@ -159,16 +160,16 @@ export default function ExploreScreen() {
               iconColor={Colors.primary700}
               iconBackgroundColor={Colors.primary50}
               value={stats.totalSessions}
-              label="Sessions"
-              subtitle="complétées"
+              label={t("stats.sessions")}
+              subtitle={t("session.completed")}
             />
             <StatsCard
               icon="barbell"
               iconColor={Colors.orange500}
               iconBackgroundColor={Colors.orange50}
               value={stats.totalExercices}
-              label="Exercices"
-              subtitle="réalisés"
+              label={t("stats.exercises")}
+              subtitle={t("session.performed")}
             />
             <StatsCard
               icon="analytics"
@@ -176,7 +177,7 @@ export default function ExploreScreen() {
               iconBackgroundColor={Colors.green50}
               value={formatEffortDurationTime(stats.totalEffortDuration)[0]}
               label={formatEffortDurationTime(stats.totalEffortDuration)[1]}
-              subtitle="d'étirement"
+              subtitle={t("session.stretching")}
             />
           </View>
         ) : (
@@ -187,7 +188,7 @@ export default function ExploreScreen() {
         <ActivityCalendar activities={activities} />
         {/* Title for sessions list */}
         <View style={{ marginTop: 16, marginBottom: 8 }}>
-          <Text style={styles.title}>Mes dernières sessions</Text>
+          <Text style={styles.title}>{t("session.myLastSessions")}</Text>
         </View>
       </View>
     );
@@ -198,7 +199,7 @@ export default function ExploreScreen() {
       <SafeAreaView edges={["left", "right"]} style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary700} />
-          <Text style={styles.loadingText}>Chargement...</Text>
+          <Text style={styles.loadingText}>{t("common.loading")}</Text>
         </View>
       </SafeAreaView>
     );

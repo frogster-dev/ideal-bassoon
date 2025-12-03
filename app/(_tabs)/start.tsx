@@ -1,16 +1,19 @@
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { SquircleButton, SquircleView } from "expo-squircle-view";
 import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { ExerciseAccordion } from "@/components/exercise-accordion";
 import { CustomSlider } from "@/components/ui/custom-slider";
 import { Line } from "@/components/ui/line";
 import { SegmentedProjectPriorityButton } from "@/components/ui/segmented-difficulty-buttonts";
+import { TopStickyModal } from "@/components/ui/top-sticky-modal";
+import { useTranslation } from "@/hooks/use-translation";
 import * as schema from "@/libs/drizzle/schema";
 import { useInSessionStore } from "@/libs/zustand/in-session-store";
-import { createSession } from "@/services/session-service";
+import { createSession, getSessionById } from "@/services/session-service";
 import { Colors } from "@/utils/constants/colors";
 import {
   effortDurationOptions,
@@ -21,19 +24,33 @@ import {
   pauseDurationOptionsDev,
 } from "@/utils/constants/session";
 import { defaultStyles } from "@/utils/constants/styles";
-import { getExerciseImage } from "@/utils/exercise-images";
 import { useAuth } from "@clerk/clerk-expo";
 import { drizzle } from "drizzle-orm/expo-sqlite";
-import { Image } from "expo-image";
 import { useSQLiteContext } from "expo-sqlite";
 
 export default function Page() {
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    sessionId?: string;
+  }>();
+
+  const { t } = useTranslation();
   const { userId } = useAuth();
   const db = useSQLiteContext();
   const drizzleDb = drizzle(db, { schema });
 
-  const { exercices, initializeSession, isLoading, setSessionId } = useInSessionStore();
+  const {
+    exercices,
+    initializeSession,
+    isLoading,
+    setSessionId,
+    populateASession,
+    moveExerciseUp,
+    moveExerciseDown,
+    replaceExercise,
+  } = useInSessionStore();
+
+  const [showStickyModal, setShowStickyModal] = useState(false);
 
   // Durée d'éffort en seconds (min: 10min, max: 25min in prod | 1min-4min in dev)
   const [effortDuration, setEffortDuration] = useState(__DEV__ ? 1 * 60 : 10 * 60);
@@ -64,19 +81,66 @@ export default function Page() {
 
     return [
       numberOfPossiblesExercices,
-      `${minutes} min ${seconds.toString().padStart(2, "0")} sec`,
-      `${pauseTimeMinutes} min ${pauseTimeSeconds.toString().padStart(2, "0")} sec`,
+      `${minutes} ${t("common.min")} ${seconds.toString().padStart(2, "0")} ${t("common.sec")}`,
+      `${pauseTimeMinutes} ${t("common.min")} ${pauseTimeSeconds.toString().padStart(2, "0")} ${t("common.sec")}`,
     ];
   }, [effortDuration, pauseDuration, exerciseDuration]);
 
   useEffect(() => {
-    initializeSession({
-      numberOfExercices: numberOfPossiblesExercices,
-      duration: exerciseDuration,
-      pauseDuration: pauseDuration,
-      difficulty,
-    });
-  }, [numberOfPossiblesExercices, exerciseDuration, pauseDuration, difficulty]);
+    const handleDuplicateSession = async (sessionId: string) => {
+      setShowStickyModal(true);
+      try {
+        const session = await getSessionById(drizzleDb, sessionId);
+        if (session) {
+          setDifficulty(session.difficulty);
+          setPauseDuration(session.pauseDuration);
+          setExerciseDuration(session.exerciseDuration);
+          setEffortDuration(session.numberOfExercices * session.exerciseDuration);
+
+          populateASession(
+            session.exercices.map((e) => ({ ...e, createdAt: new Date() })),
+            {
+              numberOfExercices: session.numberOfExercices,
+              difficulty: session.difficulty,
+              duration: session.exerciseDuration,
+              pauseDuration: session.pauseDuration,
+            },
+          );
+        }
+      } catch (error) {
+        console.error("Failed to fetch session for duplication", error);
+      } finally {
+        // Delay hiding the modal slightly to ensure the user sees it
+        setTimeout(() => {
+          setShowStickyModal(false);
+          router.setParams({ sessionId: "" }); // Clear params to avoid re-fetching
+        }, 1500);
+      }
+    };
+
+    if (params.sessionId) {
+      handleDuplicateSession(params.sessionId);
+    } else {
+      // Only initialize if we are NOT duplicating a session
+      // We check !showStickyModal to avoid overriding the populated session
+      if (!showStickyModal) {
+        initializeSession({
+          numberOfExercices: numberOfPossiblesExercices,
+          duration: exerciseDuration,
+          pauseDuration: pauseDuration,
+          difficulty,
+        });
+      }
+    }
+  }, [
+    params.sessionId,
+    numberOfPossiblesExercices,
+    exerciseDuration,
+    pauseDuration,
+    difficulty,
+    // We don't add initializeSession/populateASession/etc to dep array to avoid loops,
+    // but in a perfect world they should be stable.
+  ]);
 
   const handleStartSession = async () => {
     if (!userId || isLoading || exercices.length === 0) return;
@@ -100,15 +164,17 @@ export default function Page() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <TopStickyModal visible={showStickyModal} message={t("session.duplicationSession")} />
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 208 }}>
         <View style={styles.content}>
-          <Text style={styles.pageTitle}>Configuration de la séance d'étirement</Text>
+          <Text style={styles.pageTitle}>{t("session.configuration")}</Text>
 
           <CustomSlider
-            title="Durée d'effort"
+            title={t("session.effortDuration")}
             options={__DEV__ ? effortDurationOptionsDev : effortDurationOptions}
             value={effortDuration}
             onValueChange={setEffortDuration}
@@ -116,7 +182,7 @@ export default function Page() {
           />
 
           <CustomSlider
-            title="Durée de pause entre exercices"
+            title={t("session.pauseBetweenExercises")}
             options={__DEV__ ? pauseDurationOptionsDev : pauseDurationOptions}
             value={pauseDuration}
             onValueChange={(value) => setPauseDuration(!value ? (__DEV__ ? 2 : 5) : value)}
@@ -124,7 +190,7 @@ export default function Page() {
           />
 
           <CustomSlider
-            title="Durée de chaque exercice"
+            title={t("session.exerciseDuration")}
             options={__DEV__ ? exerciseDurationOptionsDev : exerciseDurationOptions}
             value={exerciseDuration}
             onValueChange={setExerciseDuration}
@@ -138,38 +204,38 @@ export default function Page() {
         </View>
 
         <SquircleView
-          style={{ backgroundColor: Colors.background, padding: 16, gap: 32 }}
+          style={{ backgroundColor: Colors.background, paddingVertical: 16, gap: 32 }}
           borderRadius={16}>
-          <Text style={{ ...defaultStyles.textBold, color: Colors.dark }}>
-            Recapitulatif de la séance
-          </Text>
-          <View style={{ gap: 16 }}>
-            <Line left="Nombre d'exercices a avoir" right={numberOfPossiblesExercices} />
-            <Line left="Durée totale de la séance" right={totalTime} />
-            <Line left="Total pause" right={pauseTime} />
+          <View style={{ paddingHorizontal: 16, gap: 32 }}>
+            <Text style={{ ...defaultStyles.textBold, color: Colors.primary700 }}>
+              {t("session.summary")}
+            </Text>
+            <View style={{ gap: 16 }}>
+              <Line left={t("session.numberOfExercises")} right={numberOfPossiblesExercices} />
+              <Line left={t("session.totalDuration")} right={totalTime} />
+              <Line left={t("session.totalPause")} right={pauseTime} />
+            </View>
           </View>
 
           <View style={{ gap: 16, flexDirection: "row", alignItems: "center" }}>
             <View style={{ flex: 1, height: 1, backgroundColor: Colors.slate200 }} />
-            <Text style={{ color: Colors.slate500 }}>Exercices ({exercices.length})</Text>
+            <Text style={{ color: Colors.slate500 }}>
+              {t("session.exercises")} ({exercices.length})
+            </Text>
             <View style={{ flex: 1, height: 1, backgroundColor: Colors.slate200 }} />
           </View>
 
           <View style={{ gap: 16 }}>
-            {exercices.map((exercice) => (
-              <View key={exercice.id} style={{ flexDirection: "row", alignItems: "center" }}>
-                <Text style={{ flex: 1 }}>{exercice.title}</Text>
-                <Image
-                  source={getExerciseImage(exercice.image)}
-                  style={{
-                    width: 42,
-                    height: 42,
-                    backgroundColor: Colors.slate200,
-                    borderRadius: 6,
-                  }}
-                  contentFit="cover"
-                />
-              </View>
+            {exercices.map((exercice, index) => (
+              <ExerciseAccordion
+                key={exercice.id}
+                exercise={exercice}
+                index={index}
+                totalExercises={exercices.length}
+                onMoveUp={() => moveExerciseUp(index)}
+                onMoveDown={() => moveExerciseDown(index)}
+                onChange={() => replaceExercise(index)}
+              />
             ))}
           </View>
         </SquircleView>
@@ -177,7 +243,9 @@ export default function Page() {
 
       <View style={styles.absoluteView}>
         <View style={[styles.totalTimeContainer, styles.shadow]}>
-          <Text style={styles.totalTimeText}>total: {totalTime}</Text>
+          <Text style={styles.totalTimeText}>
+            {t("common.total")}: {totalTime}
+          </Text>
         </View>
 
         <SquircleButton
@@ -185,7 +253,7 @@ export default function Page() {
           onPress={handleStartSession}
           disabled={isLoading}>
           <Text style={styles.buttonText}>
-            {isLoading ? "Chargement des exercices..." : "Commencer la séance"}
+            {isLoading ? t("session.loadingExercises") : t("session.startButton")}
           </Text>
         </SquircleButton>
       </View>
@@ -194,15 +262,16 @@ export default function Page() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: Colors.grayBackground },
+  container: { flex: 1, backgroundColor: Colors.grayBackground },
   content: {
-    paddingBottom: 120, // Add padding to account for the fixed bottom section
+    paddingBottom: 48,
+    marginHorizontal: 16,
   },
   pageTitle: {
     ...defaultStyles.textL,
     color: Colors.dark,
     textAlign: "center",
-    marginBottom: 20,
+    padding: 16,
     fontWeight: "bold",
   },
   button: {

@@ -1,10 +1,13 @@
 import { useSSO } from "@clerk/clerk-expo";
+import { Image } from "expo-image";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
+import { useTranslation } from "@/hooks/use-translation";
 import { Colors } from "@/utils/constants/colors";
+import { defaultStyles } from "@/utils/constants/styles";
 import { AppleButton } from "./AppleButton";
 import { GoogleButton } from "./GoogleButton";
 
@@ -24,6 +27,9 @@ WebBrowser.maybeCompleteAuthSession();
 export const SocialsAuthentication = () => {
   useWarmUpBrowser();
 
+  const { width } = useWindowDimensions();
+
+  const { t } = useTranslation();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -49,7 +55,7 @@ export const SocialsAuthentication = () => {
           console.log("Existing Google user signin");
         }
       } else {
-        setError("Google Sign-In incomplete. Please try again.");
+        setError(t("auth.errorIncomplete"));
       }
     } catch (error) {
       console.error(JSON.stringify(error, null, 2));
@@ -80,29 +86,64 @@ export const SocialsAuthentication = () => {
         }
       }
     } catch (err) {
-      // See https://clerk.com/docs/custom-flows/error-handling
-      // for more info on error handling
       console.error(JSON.stringify(err, null, 2));
     }
   }, []);
 
   return (
     <View style={styles.container}>
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      <View style={styles.content}>
+        <View style={styles.header}>
+          <View style={[styles.imageContainer, { width: width * 0.35, height: width * 0.35 }]}>
+            <Image
+              source={require("@/assets/images/icon.png")}
+              style={styles.image}
+              contentFit="cover"
+            />
+          </View>
 
-      <View style={styles.socialsButtons}>
-        <AppleButton onPress={onApplePress} />
+          <View style={styles.textContainer}>
+            <Text style={styles.title}>{t("auth.welcomeTitle")}</Text>
+            <Text style={styles.subtitle}>{t("auth.welcomeSubtitle")}</Text>
+          </View>
+        </View>
 
-        <GoogleButton onPress={onGoogleSignInPress} />
+        <View style={styles.socialsButtons}>
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+          <AppleButton onPress={onApplePress} disabled={loading} />
+          <GoogleButton onPress={onGoogleSignInPress} disabled={loading} />
+        </View>
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { gap: 32, marginHorizontal: 16, flex: 1 },
+  container: { flex: 1, paddingHorizontal: 24 },
+  content: { flex: 1, justifyContent: "space-between", paddingVertical: 40 },
+  header: { alignItems: "center", gap: 40, marginTop: 40 },
+  imageContainer: {
+    backgroundColor: Colors.background,
+    borderRadius: 100,
+    alignSelf: "center",
+    shadowColor: Colors.dark,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 0.2,
+    elevation: 4,
+  },
+  image: { width: "100%", height: "100%", borderRadius: 100 },
+  textContainer: { gap: 12, paddingHorizontal: 16 },
+  title: {
+    ...defaultStyles.textXL,
+    ...defaultStyles.textBold,
+    color: Colors.primary700,
+    textAlign: "center",
+  },
+  subtitle: { color: Colors.dark, textAlign: "center", opacity: 0.7 },
+  socialsButtons: { gap: 16, marginBottom: 16 },
   errorText: { color: Colors.red500, textAlign: "center" },
-  socialsButtons: { flexDirection: "row", gap: 16, alignItems: "center", flex: 1 },
 });
 
 export default SocialsAuthentication;

@@ -7,6 +7,7 @@ import { NextExerciseDisplay } from "@/components/(session)/next-exercise-displa
 import { PauseOverlay } from "@/components/ui/pause-overlay";
 import { useBeginningSessionTimer } from "@/hooks/beginning-session-timer";
 import { useTimer } from "@/hooks/use-timer";
+import { useTranslation } from "@/hooks/use-translation";
 import { useInSessionStore } from "@/libs/zustand/in-session-store";
 import { useSessionPreferences } from "@/libs/zustand/session-preferences-store";
 import { Colors } from "@/utils/constants/colors";
@@ -27,6 +28,7 @@ type SessionState = {
 
 export default function Page() {
   const router = useRouter();
+  const { t } = useTranslation();
 
   const { soundsEnabled } = useSessionPreferences();
 
@@ -241,7 +243,7 @@ export default function Page() {
             (sessionState.current === "pause" && sessionState.previous === "exerciseRest")) && (
             <Animated.View entering={FadeIn} style={styles.restOverlay}>
               <Text style={styles.restTimerText}>{restTimeLeft}</Text>
-              <Text style={styles.restLabel}>Rest</Text>
+              <Text style={styles.restLabel}>{t("session.rest")}</Text>
             </Animated.View>
           )}
         </View>

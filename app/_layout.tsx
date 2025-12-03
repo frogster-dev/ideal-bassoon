@@ -1,6 +1,11 @@
+import { useTranslation } from "@/hooks/use-translation";
 import ClerkProviderWrapper from "@/libs/clerk-provider-wrapper";
 import { ExpoSqliteProvider } from "@/libs/expo-sqlite.provider";
+import { Language, useAppPreferences } from "@/libs/zustand/app-preference-store";
+import { PremiumBottomSheetProvider } from "@/providers/premium-bottom-sheet-provider";
 import { useAuth } from "@clerk/clerk-expo";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { getLocales } from "expo-localization";
 import { SplashScreen, Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Text } from "react-native";
@@ -19,9 +24,27 @@ SplashScreen.preventAutoHideAsync();
 
 export const InitialLayout = () => {
   const router = useRouter();
+  const { t } = useTranslation();
 
   const [appIsReady, setAppIsReady] = useState(false);
   const { isSignedIn, isLoaded, userId } = useAuth();
+  const { hasManuallySelectedLanguage, setLanguage } = useAppPreferences();
+
+  // Detect and set device language on first launch
+  useEffect(() => {
+    if (!hasManuallySelectedLanguage) {
+      const locales = getLocales();
+      const deviceLanguage = locales[0]?.languageCode;
+
+      // Map device language to supported languages
+      let detectedLanguage: Language = "en"; // default
+      if (deviceLanguage === "fr") {
+        detectedLanguage = "fr";
+      }
+
+      setLanguage(detectedLanguage, false); // false = not manual selection
+    }
+  }, [hasManuallySelectedLanguage]);
 
   useEffect(() => {
     console.log("InitialLayout");
@@ -33,7 +56,7 @@ export const InitialLayout = () => {
       if (!isLoaded) return;
 
       if (!isSignedIn) {
-        router.navigate("/(auth)");
+        router.navigate("/");
         setAppIsReady(true);
       }
 
@@ -53,7 +76,7 @@ export const InitialLayout = () => {
   }, [appIsReady]);
 
   if (!isLoaded) {
-    return <Text>Loading...</Text>;
+    return <Text>{t("common.loading")}</Text>;
   }
 
   return (
@@ -72,8 +95,12 @@ export default function RootLayout() {
       <ClerkProviderWrapper>
         <GestureHandlerRootView>
           <SafeAreaProvider>
-            <SystemBars style="auto" />
-            <InitialLayout />
+            <BottomSheetModalProvider>
+              <PremiumBottomSheetProvider>
+                <SystemBars style="auto" />
+                <InitialLayout />
+              </PremiumBottomSheetProvider>
+            </BottomSheetModalProvider>
           </SafeAreaProvider>
         </GestureHandlerRootView>
       </ClerkProviderWrapper>

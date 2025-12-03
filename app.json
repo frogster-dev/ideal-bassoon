@@ -43,7 +43,8 @@
       "expo-secure-store",
       "expo-sqlite",
       "expo-web-browser",
-      "expo-audio"
+      "expo-audio",
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true,

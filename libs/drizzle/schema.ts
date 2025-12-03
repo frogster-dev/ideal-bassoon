@@ -1,5 +1,14 @@
 import { int, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
+/**
+ * @Note perso
+ * Pour modifier le schema il faut:
+ * 1. Modifier la table qu'on souhaite, ajouter, enlever le champs qu'on veut
+ * 2. Générer la migration avec `npx drizzle-kit generate`
+ * 3. Normalement, la migration s'est mise toute seule
+ * 4. On peut checker avec un SHIFT + m dans le terminal pour accéder au tool kit UI de Drizzle
+ */
+
 // Exercise table - stocke tous les exercices disponibles
 export const exercises = sqliteTable("exercises", {
   id: text("id").primaryKey(),
@@ -26,6 +35,8 @@ export const sessions = sqliteTable("sessions", {
   exerciseDuration: int("exercise_duration").notNull(), // Durée de chaque exercice en secondes
   pauseDuration: int("pause_duration").notNull(), // Durée de pause entre exercices en secondes
   totalDuration: int("total_duration").notNull(), // Durée totale calculée en secondes
+
+  favorite: int("favorite").notNull().default(0), // 0: non favori, 1: favori
 
   // Exercices de la session (stocké en JSON as text)
   exercices: text("exercices", { mode: "json" }).notNull().$type<

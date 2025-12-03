@@ -94,6 +94,47 @@ export async function completeSession(
 }
 
 /**
+ * Met à jour le titre d'une session
+ * @param sessionId - L'ID de la session
+ * @param title - Le nouveau titre
+ * @returns La session mise à jour
+ */
+export async function updateSessionTitle(
+  db: DrizzleDatabase,
+  sessionId: string,
+  title: string,
+): Promise<Session> {
+  const [updatedSession] = await db
+    .update(sessions)
+    .set({ title, updatedAt: new Date() })
+    .where(eq(sessions.id, sessionId))
+    .returning();
+
+  return updatedSession;
+}
+
+/**
+ * Met à jour le favorite d'une session
+ * @param sessionId - L'ID de la session
+ * @param favorite - Le nouveau favorite
+ * @returns La session mise à jour
+ */
+export async function updateSessionFavorite(
+  db: DrizzleDatabase,
+  sessionId: string,
+  favorite: boolean,
+): Promise<Session> {
+  console.log(`Session favorite updated: ${favorite}`);
+  const [updatedSession] = await db
+    .update(sessions)
+    .set({ favorite: favorite ? 1 : 0, updatedAt: new Date() })
+    .where(eq(sessions.id, sessionId))
+    .returning();
+
+  return updatedSession;
+}
+
+/**
  * Récupère toutes les sessions d'un utilisateur
  * @param userId - L'ID de l'utilisateur (Clerk user ID)
  * @param includeIncomplete - Inclure les sessions non terminées (par défaut: false)
@@ -110,15 +151,18 @@ export async function getUserSessions(
     ? eq(sessions.userId, userId)
     : and(eq(sessions.userId, userId), isNotNull(sessions.completedAt));
 
-  let query = db.select().from(sessions).where(whereCondition).orderBy(desc(sessions.startedAt));
+  let query = db
+    .select()
+    .from(sessions)
+    .where(whereCondition)
+    .orderBy(desc(sessions.startedAt))
+    .$dynamic();
 
   // Apply pagination only if provided
-  if (typeof limit === "number") {
-    // @ts-expect-error drizzle typing for limit/offset chaining on expo sqlite can be loose
+  if (limit && limit > 0) {
     query = query.limit(limit);
   }
-  if (typeof offset === "number") {
-    // @ts-expect-error drizzle typing for limit/offset chaining on expo sqlite can be loose
+  if (offset && offset >= 0) {
     query = query.offset(offset);
   }
 
@@ -176,4 +220,61 @@ export async function getUserSessionStats(
     totalExercices,
     totalEffortDuration, // in seconds
   };
+}
+
+/**
+ * Get the current streak by sorting by completedAt and count for the consecutive days from now
+ */
+export async function getCurrentStreak(db: DrizzleDatabase, userId: string): Promise<number> {
+  // Fetch only completed sessions for the user, sorted by date
+  const completedSessions = await db
+    .select({ completedAt: sessions.completedAt })
+    .from(sessions)
+    .where(and(eq(sessions.userId, userId), isNotNull(sessions.completedAt)))
+    .orderBy(desc(sessions.completedAt));
+
+  if (completedSessions.length === 0) {
+    return 0;
+  }
+
+  // Unique dates in sorted array (most recent first)
+  const uniqueDates = Array.from(
+    new Set(
+      completedSessions
+        .map((s) => (s.completedAt ? new Date(s.completedAt).toISOString().split("T")[0] : null))
+        .filter(Boolean) as string[],
+    ),
+  );
+
+  if (uniqueDates.length === 0) return 0;
+
+  const today = new Date();
+  const todayStr = today.toISOString().split("T")[0];
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split("T")[0];
+
+  // Check if the most recent activity is today or yesterday
+  const lastActivityDate = uniqueDates[0];
+  if (lastActivityDate !== todayStr && lastActivityDate !== yesterdayStr) {
+    return 0;
+  }
+
+  let streak = 1;
+
+  for (let i = 0; i < uniqueDates.length - 1; i++) {
+    const currentDate = new Date(uniqueDates[i]);
+    const prevDate = new Date(uniqueDates[i + 1]);
+
+    const diffTime = Math.abs(currentDate.getTime() - prevDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 1) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+
+  return streak;
 }

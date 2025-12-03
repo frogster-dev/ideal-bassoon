@@ -12,8 +12,12 @@ interface InSessionStore {
   sessionParams: InitializaSessionInput | null;
 
   initializeSession: (input: InitializaSessionInput) => Promise<void>;
+  populateASession: (exercices: ExerciseWithDuration[], params: InitializaSessionInput) => void;
   setSessionId: (sessionId: string) => void;
   clearSession: () => void;
+  moveExerciseUp: (index: number) => void;
+  moveExerciseDown: (index: number) => void;
+  replaceExercise: (index: number) => void;
 }
 
 // Helper function to select and map exercises based on current state
@@ -84,6 +88,15 @@ export const useInSessionStore = create<InSessionStore>()((set, get) => ({
     }
   },
 
+  populateASession: (exercices: ExerciseWithDuration[], params: InitializaSessionInput) => {
+    set({
+      exercices,
+      sessionParams: params,
+      isLoading: false,
+      error: null,
+    });
+  },
+
   setSessionId: (sessionId: string) => set({ sessionId }),
 
   clearSession: () =>
@@ -95,4 +108,39 @@ export const useInSessionStore = create<InSessionStore>()((set, get) => ({
       sessionParams: null,
       // Keep allExercises cached for future sessions
     }),
+
+  moveExerciseUp: (index: number) => {
+    const { exercices } = get();
+    if (index <= 0 || index >= exercices.length) return;
+    const newExercises = [...exercices];
+    [newExercises[index - 1], newExercises[index]] = [newExercises[index], newExercises[index - 1]];
+    set({ exercices: newExercises });
+  },
+
+  moveExerciseDown: (index: number) => {
+    const { exercices } = get();
+    if (index < 0 || index >= exercices.length - 1) return;
+    const newExercises = [...exercices];
+    [newExercises[index + 1], newExercises[index]] = [newExercises[index], newExercises[index + 1]];
+    set({ exercices: newExercises });
+  },
+
+  replaceExercise: (index: number) => {
+    const { exercices, allExercises } = get();
+    if (index < 0 || index >= exercices.length) return;
+
+    const currentIds = new Set(exercices.map((e) => e.id));
+    const availableExercises = allExercises.filter((e) => !currentIds.has(e.id));
+
+    if (availableExercises.length === 0) return;
+
+    const randomExercise =
+      availableExercises[Math.floor(Math.random() * availableExercises.length)];
+    const newExercises = [...exercices];
+
+    // Maintain the duration of the slot
+    newExercises[index] = { ...randomExercise, duration: exercices[index].duration };
+
+    set({ exercices: newExercises });
+  },
 }));

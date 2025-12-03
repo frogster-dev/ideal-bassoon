@@ -1,90 +1,142 @@
 import { EndSessionModal } from "@/components/(session)/end-session-modal";
 import { StreakCard } from "@/components/streak-card";
+import { useTranslation } from "@/hooks/use-translation";
 import * as schema from "@/libs/drizzle/schema";
+import { Session } from "@/libs/drizzle/schema";
 import { useInSessionStore } from "@/libs/zustand/in-session-store";
-import { completeSession, getSessionById } from "@/services/session-service";
+import {
+  completeSession,
+  getCurrentStreak,
+  getSessionById,
+  updateSessionFavorite,
+  updateSessionTitle,
+} from "@/services/session-service";
 import { Colors } from "@/utils/constants/colors";
 import { defaultStyles } from "@/utils/constants/styles";
 import { generateSessionTitle } from "@/utils/generate-session-title";
+import { formatDuration } from "@/utils/time";
+import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { drizzle } from "drizzle-orm/expo-sqlite";
 import { router } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { SquircleButton, SquircleView } from "expo-squircle-view";
 import React, { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Page() {
+  const { userId } = useAuth();
+  const { t } = useTranslation();
   const [modalVisible, setModalVisible] = useState(true);
   const [isCompleting, setIsCompleting] = useState(false);
   const [sessionTitle, setSessionTitle] = useState("");
   const [placeholderTitle, setPlaceholderTitle] = useState("");
+  const [session, setSession] = useState<Session | null>(null);
+  const [currentStreak, setCurrentStreak] = useState(0);
 
   const db = useSQLiteContext();
   const drizzleDb = drizzle(db, { schema });
   const { sessionId, clearSession } = useInSessionStore();
 
-  // Générer un titre placeholder basé sur la session actuelle
+  // Fetch session details and register completion immediately
   useEffect(() => {
-    const generatePlaceholder = async () => {
-      if (!sessionId) return;
+    const initSessionPage = async () => {
+      if (!sessionId || !userId) return;
 
       try {
-        const session = await getSessionById(drizzleDb, sessionId);
+        const fetchedSession = await getSessionById(drizzleDb, sessionId);
 
-        if (session) {
-          setPlaceholderTitle(
-            generateSessionTitle({
-              totalDuration: session.totalDuration,
-              numberOfExercices: session.numberOfExercices,
-              exerciseDuration: session.exerciseDuration,
-            }),
-          );
+        if (fetchedSession) {
+          setSession(fetchedSession);
+
+          const defaultTitle = generateSessionTitle({
+            totalDuration: fetchedSession.totalDuration,
+            numberOfExercices: fetchedSession.numberOfExercices,
+            exerciseDuration: fetchedSession.exerciseDuration,
+          });
+
+          setPlaceholderTitle(defaultTitle);
+
+          // Register session as completed immediately if not already done
+          if (!fetchedSession.completedAt) {
+            await completeSession(drizzleDb, sessionId, defaultTitle);
+          }
+
+          // Fetch current streak after ensuring session is completed
+          const streak = await getCurrentStreak(drizzleDb, userId);
+          setCurrentStreak(streak);
         }
       } catch (error) {
-        console.error("Failed to generate placeholder:", error);
+        console.error("Failed to init session page:", error);
       }
     };
 
-    generatePlaceholder();
-  }, [sessionId]);
+    initSessionPage();
+  }, [sessionId, userId]);
 
-  const handleCompleteSession = async () => {
+  const handleFinishButton = async () => {
     if (!sessionId || isCompleting) return;
 
     try {
       setIsCompleting(true);
 
-      // Générer un titre automatique si l'utilisateur n'en a pas fourni
-      let finalTitle = sessionTitle.trim();
+      // Update title only if user provided a custom one
+      const finalTitle = sessionTitle.trim();
 
-      if (!finalTitle) {
-        // Récupérer la session pour obtenir sa configuration
-        const session = await getSessionById(drizzleDb, sessionId);
-        if (session) {
-          finalTitle = generateSessionTitle({
-            totalDuration: session.totalDuration,
-            numberOfExercices: session.numberOfExercices,
-            exerciseDuration: session.exerciseDuration,
-          });
-        }
+      if (finalTitle && finalTitle !== placeholderTitle) {
+        await updateSessionTitle(drizzleDb, sessionId, finalTitle);
       }
 
-      await completeSession(drizzleDb, sessionId, finalTitle);
       clearSession();
-      router.replace("/explore");
+      router.replace("/(_tabs)");
     } catch (error) {
-      console.error("Failed to complete session:", error);
+      console.error("Failed to finish session:", error);
       setIsCompleting(false);
     }
   };
+
+  const handleShare = async () => {
+    if (!session) return;
+
+    const exercisesList = session.exercices.map((e) => `- ${e.title}`).join("\n");
+
+    const message = [
+      t("session.sessionCompleted"),
+      `${t("session.totalDuration")}: ${formatDuration(session.totalDuration)}`,
+      `${t("session.numberOfExercises")}: ${session.numberOfExercices}`,
+      "",
+      t("session.exercises") + ":",
+      exercisesList,
+    ].join("\n");
+
+    try {
+      await Share.share({
+        message,
+      });
+    } catch (error) {
+      console.error("Share error:", error);
+    }
+  };
+
+  const handleFavorite = async () => {
+    if (!session || !sessionId) return;
+
+    try {
+      await updateSessionFavorite(drizzleDb, sessionId, !session.favorite);
+      setSession({ ...session, favorite: session.favorite ? 0 : 1 });
+    } catch (error) {
+      console.error("Failed to update favorite:", error);
+    }
+  };
+
+  const totalPause = session ? (session.numberOfExercices - 1) * session.pauseDuration : 0;
 
   return (
     <SafeAreaView style={styles.container}>
       <EndSessionModal visible={modalVisible} onClose={() => setModalVisible(false)} />
 
-      <Text style={styles.title}>Séance terminée</Text>
+      <Text style={styles.title}>{t("session.sessionCompleted")}</Text>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <TextInput
@@ -98,23 +150,23 @@ export default function Page() {
 
         <View style={styles.blocks}>
           <Block
-            label="Nombre d'exercices"
-            value={"4 exercices"}
-            icon={"pause-circle-outline"}
+            label={t("session.numberOfExercises")}
+            value={session ? `${session.numberOfExercices} exercices` : "..."}
+            icon={"barbell-outline"}
             color={Colors.blue500}
             bg={Colors.blue50}
           />
           <Block
-            label="Durée totale de la séance"
-            value="4 min 00"
-            icon={"pause-circle-outline"}
+            label={t("session.totalDuration")}
+            value={session ? formatDuration(session.totalDuration) : "..."}
+            icon={"time-outline"}
             color={Colors.blue500}
             bg={Colors.blue50}
           />
           <Block
-            label="Total pause"
-            value="4 min 00"
-            icon={"pause-circle-outline"}
+            label={t("session.totalPause")}
+            value={session ? formatDuration(totalPause) : "..."}
+            icon={"hourglass-outline"}
             color={Colors.blue500}
             bg={Colors.blue50}
           />
@@ -131,35 +183,47 @@ export default function Page() {
         <View style={styles.secondaryActionsContainer}>
           <SquircleButton
             activeOpacity={0.8}
-            borderRadius={8}
-            onPress={() => router.replace("/start")}
-            style={styles.secondaryActionButton}>
-            <Text style={styles.secondaryActionButtonText}>Ajouter favoris</Text>
-            <Ionicons name="bookmark-outline" size={24} color={Colors.background} />
+            borderRadius={16}
+            onPress={handleFavorite}
+            style={[styles.secondaryActionButton, styles.favoriteButton]}>
+            <Text
+              style={[styles.secondaryActionButtonText, { color: Colors.primary700 }]}
+              numberOfLines={1}>
+              {t("session.addToFavorites")}
+            </Text>
+            <Ionicons
+              name={session?.favorite ? "heart" : "heart-outline"}
+              size={24}
+              color={Colors.primary700}
+            />
           </SquircleButton>
 
           <SquircleButton
             activeOpacity={0.8}
-            borderRadius={8}
-            onPress={() => router.replace("/start")}
-            style={[styles.secondaryActionButton, { backgroundColor: Colors.slate500 }]}>
-            <Text style={styles.secondaryActionButtonText}>Partager</Text>
-            <Ionicons name="share-outline" size={24} color={Colors.background} />
+            borderRadius={16}
+            onPress={handleShare}
+            style={[styles.secondaryActionButton, styles.shareButton]}>
+            <Text
+              style={[styles.secondaryActionButtonText, { color: Colors.slate500 }]}
+              numberOfLines={1}>
+              {t("session.share")}
+            </Text>
+            <Ionicons name="share-outline" size={24} color={Colors.slate500} />
           </SquircleButton>
         </View>
 
-        <StreakCard />
+        <StreakCard streak={currentStreak} />
       </ScrollView>
 
       <View style={styles.stickyButtonContainer}>
         <SquircleButton
           activeOpacity={0.8}
           borderRadius={12}
-          onPress={handleCompleteSession}
+          onPress={handleFinishButton}
           disabled={isCompleting}
           style={[styles.completeButton, { opacity: isCompleting ? 0.5 : 1 }]}>
           <Text style={styles.completeButtonText}>
-            {isCompleting ? "Enregistrement..." : "Terminer la séance"}
+            {isCompleting ? t("session.saving") : t("session.finishSession")}
           </Text>
         </SquircleButton>
       </View>
@@ -170,7 +234,7 @@ export default function Page() {
 interface BlockProps {
   label: string;
   value: string;
-  icon: typeof Ionicons.defaultProps;
+  icon: keyof typeof Ionicons.glyphMap;
   color: string;
   bg: string;
 }
@@ -206,7 +270,6 @@ const styles = StyleSheet.create({
   titleInputLabel: {
     color: Colors.dark,
     ...defaultStyles.textBold,
-    fontSize: 14,
   },
   titleInput: {
     backgroundColor: Colors.background,
@@ -214,7 +277,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     color: Colors.dark,
-    fontSize: 16,
     borderWidth: 1,
     borderColor: Colors.slate200,
   },
@@ -252,23 +314,28 @@ const styles = StyleSheet.create({
   star: { opacity: 0.5 },
   secondaryActionsContainer: {
     flexDirection: "row",
-    gap: 32,
+    gap: 16,
     alignItems: "center",
     justifyContent: "space-between",
   },
   secondaryActionButton: {
     flex: 1,
-    height: 48,
+    height: 56,
     gap: 8,
-    backgroundColor: Colors.primary700,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
   },
-  secondaryActionButtonText: {
-    color: Colors.background,
-    ...defaultStyles.textBold,
+  favoriteButton: {
+    backgroundColor: Colors.primary50,
+    borderColor: Colors.primary200,
   },
+  shareButton: {
+    backgroundColor: Colors.slate50,
+    borderColor: Colors.slate200,
+  },
+  secondaryActionButtonText: { fontWeight: "500" },
   stickyButtonContainer: {
     position: "absolute",
     bottom: 0,
@@ -286,6 +353,5 @@ const styles = StyleSheet.create({
   completeButtonText: {
     color: Colors.background,
     ...defaultStyles.textBold,
-    fontSize: 16,
   },
 });

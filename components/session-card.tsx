@@ -1,8 +1,10 @@
+import { useTranslation } from "@/hooks/use-translation";
 import { Session } from "@/libs/drizzle/schema";
 import { Colors } from "@/utils/constants/colors";
 import { defaultStyles } from "@/utils/constants/styles";
 import { formatDate, formatDuration } from "@/utils/time";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { SquircleButton } from "expo-squircle-view";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
@@ -13,6 +15,9 @@ interface SessionCardProps {
 }
 
 export const SessionCard = React.memo(({ item, placeholder }: SessionCardProps) => {
+  const router = useRouter();
+  const { t } = useTranslation();
+
   const getDifficultyLabel = (difficulty: number) => {
     switch (difficulty) {
       case 1:
@@ -33,6 +38,15 @@ export const SessionCard = React.memo(({ item, placeholder }: SessionCardProps) 
       case 3:
         return { ...styles.sessionDetailValue, color: Colors.red500 };
     }
+  };
+
+  const handleRedoSession = () => {
+    router.push({
+      pathname: "/start",
+      params: {
+        sessionId: item.id,
+      },
+    });
   };
 
   return (
@@ -57,18 +71,17 @@ export const SessionCard = React.memo(({ item, placeholder }: SessionCardProps) 
       </View>
 
       <View style={styles.footerRow}>
-        <Text style={styles.sessionDateText}>{formatDate(item.startedAt)}</Text>
-        <View style={styles.actionButtonsRow}>
-          <SquircleButton
-            style={styles.actionButtonGhost}
-            activeOpacity={0.8}
-            disabled={placeholder}>
-            <MaterialIcons name="share" size={24} color={Colors.slate500} />
-          </SquircleButton>
-          <SquircleButton style={styles.actionButton} activeOpacity={0.8} disabled={placeholder}>
-            <MaterialIcons name="control-point-duplicate" size={24} color={Colors.slate500} />
-          </SquircleButton>
-        </View>
+        <Text style={styles.sessionDateText} numberOfLines={1}>
+          {formatDate(item.startedAt)}
+        </Text>
+        <SquircleButton
+          style={styles.actionButton}
+          activeOpacity={0.8}
+          disabled={placeholder}
+          onPress={handleRedoSession}>
+          <Text style={styles.actionButtonText}>{t("session.redoSession")}</Text>
+          <MaterialIcons name="control-point-duplicate" size={24} color={Colors.slate500} />
+        </SquircleButton>
       </View>
     </View>
   );
@@ -103,6 +116,7 @@ const styles = StyleSheet.create({
   footerRow: {
     flexDirection: "row",
     alignSelf: "center",
+    gap: 16,
     alignItems: "flex-end",
     justifyContent: "space-between",
   },
@@ -112,13 +126,21 @@ const styles = StyleSheet.create({
     opacity: 0.6,
     flex: 1,
   },
-  actionButtonsRow: { flexDirection: "row", gap: 16 },
   actionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.slate200,
     backgroundColor: Colors.slate50,
     borderRadius: 8,
-    padding: 12,
+    padding: 8,
+    paddingHorizontal: 12,
+  },
+  actionButtonText: {
+    ...defaultStyles.textS,
+    color: Colors.dark,
+    opacity: 0.6,
   },
   actionButtonGhost: {
     borderWidth: StyleSheet.hairlineWidth,
